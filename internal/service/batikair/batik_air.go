@@ -37,7 +37,7 @@ func (g *batikAirService) GetFlight() ([]entity.BatikFlight, error) {
 
 	data, err := os.ReadFile(g.filePath)
 	if err != nil {
-		return nil, fmt.Errorf("Garuda.getFlight: Failed to get garuda data")
+		return nil, fmt.Errorf("Batik.getFlight: Failed to get batik data")
 	}
 
 	var batikAirResponse BatikAirResponse

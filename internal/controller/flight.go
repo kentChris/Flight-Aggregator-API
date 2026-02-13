@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	logger "flight-aggregator/internal/common"
 	"flight-aggregator/internal/service"
 )
@@ -26,5 +27,10 @@ func (f *FlightController) SearchFlightData() {
 		f.logger.Error(err)
 	}
 
-	f.logger.Info("result: ", result)
+	byteData, err := json.MarshalIndent(result, "", "    ")
+	if err != nil {
+		f.logger.Error("Failed to marshal:", err)
+		return
+	}
+	f.logger.Info("result: ", string(byteData))
 }
