@@ -36,7 +36,7 @@ func (f *FlightController) SearchFlightData() {
 		Passanger:     1,
 		CabinClass:    "economy",
 		// 		Airlines
-		Airlines: []string{entity.LIONAIR},
+		Airlines: []string{entity.GARUDA, entity.LIONAIR},
 		// 		Price range
 		// PriceMin: 400000,
 		// PriceMax: 600000,

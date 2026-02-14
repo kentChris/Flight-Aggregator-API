@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	logger "flight-aggregator/internal/common"
-	"flight-aggregator/internal/common/util"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -82,7 +81,11 @@ func (b *batikAirService) mapFlight(flight entity.BatikFlight) (entity.Flight, e
 		return entity.Flight{}, err
 	}
 
-	totalMinutes := util.ParseDurationStringToInt(flight.TravelTime)
+	elapsedDuration := arrTime.Sub(depTime)
+	totalMinutes := int(elapsedDuration.Minutes())
+	hours := totalMinutes / 60
+	mins := totalMinutes % 60
+	formattedDuration := fmt.Sprintf("%dh %dm", hours, mins)
 
 	baggage := entity.BaggageDetails{
 		CarryOn: "7kg",
@@ -120,7 +123,7 @@ func (b *batikAirService) mapFlight(flight entity.BatikFlight) (entity.Flight, e
 		},
 		Duration: entity.DurationDetails{
 			TotalMinutes: totalMinutes,
-			Formatted:    flight.TravelTime,
+			Formatted:    formattedDuration,
 		},
 		Stops:          flight.NumberOfStops,
 		AvailableSeats: flight.SeatsAvailable,

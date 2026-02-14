@@ -6,7 +6,6 @@ import (
 	logger "flight-aggregator/internal/common"
 	"flight-aggregator/internal/entity"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -88,7 +87,11 @@ func (a *airAsiaService) mapFlight(flight entity.AirAsiaFlight) (entity.Flight, 
 	}
 
 	// Convert duration_hours (float64) to minutes
-	totalMinutes := int(math.Round(flight.DurationHours * 60))
+	elapsedDuration := arrTime.Sub(depTime)
+	totalMinutes := int(elapsedDuration.Minutes())
+	hours := totalMinutes / 60
+	mins := totalMinutes % 60
+	formattedDuration := fmt.Sprintf("%dh %dm", hours, mins)
 
 	// Initialize Location Registry
 	lr := entity.LocationRegistry{}
@@ -131,7 +134,7 @@ func (a *airAsiaService) mapFlight(flight entity.AirAsiaFlight) (entity.Flight, 
 		},
 		Duration: entity.DurationDetails{
 			TotalMinutes: totalMinutes,
-			Formatted:    fmt.Sprintf("%dh %dm", totalMinutes/60, totalMinutes%60),
+			Formatted:    formattedDuration,
 		},
 		Stops: stopCount,
 		Price: entity.PriceDetails{

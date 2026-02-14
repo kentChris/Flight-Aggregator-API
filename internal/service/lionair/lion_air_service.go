@@ -88,6 +88,12 @@ func (s *lionAirService) mapFlight(flight entity.LionFlight) (entity.Flight, err
 		return entity.Flight{}, err
 	}
 
+	elapsedDuration := arrTime.Sub(depTime)
+	totalMinutes := int(elapsedDuration.Minutes())
+	hours := totalMinutes / 60
+	mins := totalMinutes % 60
+	formattedDuration := fmt.Sprintf("%dh %dm", hours, mins)
+
 	aircraft := flight.PlaneType
 
 	// amenities
@@ -120,8 +126,8 @@ func (s *lionAirService) mapFlight(flight entity.LionFlight) (entity.Flight, err
 			Timestamp: arrTime.Unix(),
 		},
 		Duration: entity.DurationDetails{
-			TotalMinutes: flight.FlightTime,
-			Formatted:    fmt.Sprintf("%dh %dm", flight.FlightTime/60, flight.FlightTime%60),
+			TotalMinutes: totalMinutes,
+			Formatted:    formattedDuration,
 		},
 		Stops:          flight.StopCount,
 		AvailableSeats: flight.SeatsLeft,

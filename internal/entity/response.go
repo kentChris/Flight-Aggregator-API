@@ -3,6 +3,7 @@ package entity
 type SearchResponse struct {
 	SearchCriteria SearchCriteria `json:"search_criteria"`
 	Metadata       Metadata       `json:"metadata"`
+	BestValue      *Flight        `json:"best_value_deal"`
 	Flights        []Flight       `json:"flights"`
 }
 

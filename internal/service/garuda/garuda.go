@@ -81,6 +81,12 @@ func (g *garudaService) mapFlight(flight entity.GarudaFlight) (entity.Flight, er
 		return entity.Flight{}, err
 	}
 
+	elapsedDuration := arrTime.Sub(depTime)
+	totalMinutes := int(elapsedDuration.Minutes())
+	hours := totalMinutes / 60
+	mins := totalMinutes % 60
+	formattedDuration := fmt.Sprintf("%dh %dm", hours, mins)
+
 	// init location registery
 	locationRegistery := entity.LocationRegistry{}
 
@@ -105,8 +111,8 @@ func (g *garudaService) mapFlight(flight entity.GarudaFlight) (entity.Flight, er
 			Timestamp: arrTime.Unix(),
 		},
 		Duration: entity.DurationDetails{
-			TotalMinutes: flight.DurationMinutes,
-			Formatted:    fmt.Sprintf("%dh %dm", flight.DurationMinutes/60, flight.DurationMinutes%60),
+			TotalMinutes: totalMinutes,
+			Formatted:    formattedDuration,
 		},
 		Stops: flight.Stops,
 		Price: entity.PriceDetails{

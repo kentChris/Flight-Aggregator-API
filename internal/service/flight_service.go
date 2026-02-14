@@ -10,6 +10,7 @@ import (
 	"flight-aggregator/internal/service/garuda"
 	"flight-aggregator/internal/service/lionair"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -71,10 +72,12 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 	allFlights := append(cachedFlights, liveFlights...)
 
 	// Fillter
-	filteredFlights := f.applyFilters(allFlights, req)
+	filteredFlights, bestValue := f.applyFiltersAndIdentifyBest(allFlights, req)
 
 	// Sort
-	f.applySorting(filteredFlights, req)
+	if len(filteredFlights) > 0 {
+		f.applySorting(filteredFlights, req)
+	}
 
 	return entity.SearchResponse{
 		Flights: filteredFlights,
@@ -93,6 +96,7 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 			SearchTimeMs:       time.Since(startTime).Milliseconds(),
 			CacheHit:           cacheHit,
 		},
+		BestValue: bestValue,
 	}, nil
 
 }
@@ -120,25 +124,33 @@ func (f *flightService) applySorting(flights []entity.Flight, req entity.SearchR
 	})
 }
 
-func (f *flightService) applyFilters(flights []entity.Flight, req entity.SearchRequest) []entity.Flight {
+func (f *flightService) applyFiltersAndIdentifyBest(flights []entity.Flight, req entity.SearchRequest) ([]entity.Flight, *entity.Flight) {
 	filtered := make([]entity.Flight, 0, len(flights))
 
+	var bestDeal *entity.Flight
+	minScore := math.MaxFloat64
+
+	// constant value
+	const timeWeight = 2500.0
+	const stopPenalty = 150000.0
+	const amenities = 50000.0
+
 	for _, fl := range flights {
+		//  Price, Stop, Duration FILTERS
 		if req.PriceMin > 0 && fl.Price.Amount < req.PriceMin {
 			continue
 		}
 		if req.PriceMax > 0 && fl.Price.Amount > req.PriceMax {
 			continue
 		}
-
 		if req.MaxStops != nil && fl.Stops > *req.MaxStops {
 			continue
 		}
-
 		if req.MaxDuration > 0 && fl.Duration.TotalMinutes > req.MaxDuration {
 			continue
 		}
 
+		// Time filters
 		depTimeStr := fl.Departure.Datetime.Format("15:04")
 		if req.MinDepTime != "" && depTimeStr < req.MinDepTime {
 			continue
@@ -147,18 +159,23 @@ func (f *flightService) applyFilters(flights []entity.Flight, req entity.SearchR
 			continue
 		}
 
-		arrTimeStr := fl.Arrival.Datetime.Format("15:04")
-		if req.MinDepTime != "" && arrTimeStr < req.MinDepTime {
-			continue
-		}
-		if req.MaxDepTime != "" && arrTimeStr > req.MaxDepTime {
-			continue
+		// CALCULATE BEST VALUE SCORE
+		// Formula: Price + (Total Time Weight) + (Stop Penalty) - (Amenities)
+		score := fl.Price.Amount +
+			(float64(fl.Duration.TotalMinutes) * timeWeight) +
+			(float64(fl.Stops) * stopPenalty) -
+			(float64(len(fl.Amenities)) * amenities)
+
+		if score < minScore {
+			minScore = score
+			temp := fl
+			bestDeal = &temp
 		}
 
 		filtered = append(filtered, fl)
 	}
 
-	return filtered
+	return filtered, bestDeal
 }
 
 func (f *flightService) fetchSpecificAirlines(ctx context.Context, req entity.SearchRequest, missingCodes []string) ([]entity.Flight, int, int) {
