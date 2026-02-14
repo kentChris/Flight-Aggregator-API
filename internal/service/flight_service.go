@@ -57,8 +57,6 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 	// get from redis if not mark the airlines
 	cachedFlights, missingAirlines, succeeded := f.getCachedAirlines(ctx, req)
 
-	fmt.Println(missingAirlines)
-
 	// fetch mock airlines
 	var liveFlights []entity.Flight
 	var liveSucceeded int

@@ -9,9 +9,11 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o flight-aggregator ./cmd/app/main.go
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 
 COPY --from=builder /app/flight-aggregator .
+
+COPY --from=builder /app/mock ./mock
 
 CMD ["./flight-aggregator"]
