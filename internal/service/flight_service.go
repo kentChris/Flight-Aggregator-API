@@ -55,6 +55,8 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 	// get from redis if not mark the airlines
 	cachedFlights, missingAirlines, succeeded := f.getCachedAirlines(ctx, req)
 
+	fmt.Println(missingAirlines)
+
 	// fetch mock airlines
 	var liveFlights []entity.Flight
 	var liveSucceeded int
@@ -67,17 +69,19 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 	}
 	allFlights := append(cachedFlights, liveFlights...)
 
+	filteredFlights := f.applyFilters(allFlights, req)
+
 	return entity.SearchResponse{
-		Flights: allFlights,
+		Flights: filteredFlights,
 		SearchCriteria: entity.SearchCriteria{
 			Origin:        req.Origin,
 			Destination:   req.Destination,
-			DepartureDate: req.Date,
+			DepartureDate: req.DepartureDate,
 			Passengers:    req.Passanger,
 			CabinClass:    req.CabinClass,
 		},
 		Metadata: entity.Metadata{
-			TotalResults:       len(allFlights),
+			TotalResults:       len(filteredFlights),
 			ProvidersQueried:   liveSucceeded + succeeded + failed,
 			ProvidersSucceeded: succeeded + liveSucceeded,
 			ProvidersFailed:    failed,
@@ -86,6 +90,47 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 		},
 	}, nil
 
+}
+
+func (f *flightService) applyFilters(flights []entity.Flight, req entity.SearchRequest) []entity.Flight {
+	filtered := make([]entity.Flight, 0, len(flights))
+
+	for _, fl := range flights {
+		if req.PriceMin > 0 && fl.Price.Amount < req.PriceMin {
+			continue
+		}
+		if req.PriceMax > 0 && fl.Price.Amount > req.PriceMax {
+			continue
+		}
+
+		if req.MaxStops != nil && fl.Stops > *req.MaxStops {
+			continue
+		}
+
+		if req.MaxDuration > 0 && fl.Duration.TotalMinutes > req.MaxDuration {
+			continue
+		}
+
+		depTimeStr := fl.Departure.Datetime.Format("15:04")
+		if req.MinDepTime != "" && depTimeStr < req.MinDepTime {
+			continue
+		}
+		if req.MaxDepTime != "" && depTimeStr > req.MaxDepTime {
+			continue
+		}
+
+		arrTimeStr := fl.Arrival.Datetime.Format("15:04")
+		if req.MinDepTime != "" && arrTimeStr < req.MinDepTime {
+			continue
+		}
+		if req.MaxDepTime != "" && arrTimeStr > req.MaxDepTime {
+			continue
+		}
+
+		filtered = append(filtered, fl)
+	}
+
+	return filtered
 }
 
 func (f *flightService) fetchSpecificAirlines(ctx context.Context, req entity.SearchRequest, missingCodes []string) ([]entity.Flight, int, int) {
@@ -141,7 +186,7 @@ func (f *flightService) fetchSpecificAirlines(ctx context.Context, req entity.Se
 }
 
 func (f *flightService) saveToCache(ctx context.Context, req entity.SearchRequest, code string, flights []entity.Flight) {
-	key := fmt.Sprintf("flights:%s:%s:%s:%s", req.Origin, req.Destination, req.Date, code)
+	key := fmt.Sprintf("flights:%s:%s:%s:%s", req.Origin, req.Destination, req.DepartureDate, code)
 
 	err := f.redisService.Set(ctx, key, flights, 1*time.Minute)
 	if err != nil {
@@ -156,13 +201,18 @@ func (f *flightService) standardizeRequest(req *entity.SearchRequest) {
 
 func (f *flightService) getCachedAirlines(ctx context.Context, req entity.SearchRequest) ([]entity.Flight, []string, int) {
 	airlines := []string{entity.GARUDA, entity.LIONAIR, entity.BATIKAIR, entity.AIRASIA}
+	targetAirlines := airlines
 	var cachedFlights []entity.Flight
 	var missingAirlines []string
 	var succeeded int
 
-	for _, code := range airlines {
+	if len(req.Airlines) > 0 {
+		targetAirlines = req.Airlines
+	}
+
+	for _, code := range targetAirlines {
 		var airlineFlights []entity.Flight
-		key := fmt.Sprintf("flights:%s:%s:%s:%s", req.Origin, req.Destination, req.Date, code)
+		key := fmt.Sprintf("flights:%s:%s:%s:%s", req.Origin, req.Destination, req.DepartureDate, code)
 
 		if err := f.redisService.Get(ctx, key, &airlineFlights); err == nil && len(airlineFlights) > 0 {
 			cachedFlights = append(cachedFlights, airlineFlights...)

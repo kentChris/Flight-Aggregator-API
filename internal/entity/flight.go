@@ -92,13 +92,24 @@ func (r *LocationRegistry) GetAirport(code string) string {
 }
 
 type SearchRequest struct {
-	Origin      string
-	Destination string
-	Date        string // Expecting YYYY-MM-DD
-	CabinClass  string
-	Passanger   int
-	PriceMax    float64
-	SortBy      string
+	Origin        string  `json:"origin"`
+	Destination   string  `json:"destination"`
+	DepartureDate string  `json:"departureDate"`
+	ReturnDate    *string `json:"returnDate"` // Pointer because it can be null
+	Passanger     int     `json:"passengers"`
+	CabinClass    string  `json:"cabinClass"`
+
+	PriceMin    float64  `json:"priceMin,omitempty"`
+	PriceMax    float64  `json:"priceMax,omitempty"`
+	MaxStops    *int     `json:"maxStops,omitempty"`
+	Airlines    []string `json:"airlines,omitempty"`
+	MinDepTime  string   `json:"minDepTime,omitempty"`
+	MaxDepTime  string   `json:"maxDepTime,omitempty"`
+	MaxDuration int      `json:"maxDuration,omitempty"`
+
+	// Sorting
+	SortBy    string `json:"sortBy,omitempty"`
+	SortOrder string `json:"sortOrder,omitempty"`
 }
 
 func (r *SearchRequest) Validate() error {
