@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	logger "flight-aggregator/internal/common"
+	"flight-aggregator/internal/common/util"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -131,6 +132,13 @@ func (s *lionAirService) mapFlight(flight entity.LionFlight) (entity.Flight, err
 		amenities = append(amenities, entity.AMENITIES_MEAL)
 	}
 
+	// formated IDR
+	const idr = "IDR"
+	var formattedPrice string
+	if flight.Pricing.Currency == idr {
+		formattedPrice = util.FormatIDR(float64(flight.Pricing.Total))
+	}
+
 	return entity.Flight{
 		ID:       fmt.Sprintf("%s_%s", flight.ID, entity.LIONAIR),
 		Provider: entity.PROVIDER_LION_AIR,
@@ -162,8 +170,9 @@ func (s *lionAirService) mapFlight(flight entity.LionFlight) (entity.Flight, err
 		CabinClass:     flight.Pricing.FareType,
 		Aircraft:       &aircraft,
 		Price: entity.PriceDetails{
-			Amount:   flight.Pricing.Total,
-			Currency: flight.Pricing.Currency,
+			Amount:    flight.Pricing.Total,
+			Currency:  flight.Pricing.Currency,
+			Formatted: formattedPrice,
 		},
 		Baggage: entity.BaggageDetails{
 			CarryOn: flight.Services.BaggageAllowance.Cabin,

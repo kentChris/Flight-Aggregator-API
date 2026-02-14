@@ -56,8 +56,9 @@ type DurationDetails struct {
 }
 
 type PriceDetails struct {
-	Amount   float64 `json:"amount"`
-	Currency string  `json:"currency"`
+	Amount    float64 `json:"amount"`
+	Currency  string  `json:"currency"`
+	Formatted string  `json:"formatted"`
 }
 
 type BaggageDetails struct {

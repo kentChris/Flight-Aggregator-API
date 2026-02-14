@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	logger "flight-aggregator/internal/common"
+	"flight-aggregator/internal/common/util"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -165,8 +166,9 @@ func (a *airAsiaService) mapFlight(flight entity.AirAsiaFlight) (entity.Flight, 
 		},
 		Stops: stopCount,
 		Price: entity.PriceDetails{
-			Amount:   flight.PriceIDR,
-			Currency: "IDR",
+			Amount:    flight.PriceIDR,
+			Currency:  "IDR",
+			Formatted: util.FormatIDR(flight.PriceIDR),
 		},
 		AvailableSeats: flight.Seats,
 		CabinClass:     flight.CabinClass,

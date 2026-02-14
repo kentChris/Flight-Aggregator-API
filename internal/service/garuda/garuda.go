@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	logger "flight-aggregator/internal/common"
+	"flight-aggregator/internal/common/util"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -118,6 +119,13 @@ func (g *garudaService) mapFlight(flight entity.GarudaFlight) (entity.Flight, er
 	// init location registery
 	locationRegistery := entity.LocationRegistry{}
 
+	// formated IDR
+	const idr = "IDR"
+	var formattedPrice string
+	if flight.Price.Currency == idr {
+		formattedPrice = util.FormatIDR(float64(flight.Price.Amount))
+	}
+
 	return entity.Flight{
 		ID:       fmt.Sprintf("%s_%s", flight.FlightID, entity.GARUDA),
 		Provider: entity.PROVIDER_GARUDA,
@@ -146,8 +154,9 @@ func (g *garudaService) mapFlight(flight entity.GarudaFlight) (entity.Flight, er
 		},
 		Stops: flight.Stops,
 		Price: entity.PriceDetails{
-			Amount:   flight.Price.Amount,
-			Currency: flight.Price.Currency,
+			Amount:    flight.Price.Amount,
+			Currency:  flight.Price.Currency,
+			Formatted: formattedPrice,
 		},
 		AvailableSeats: flight.AvailableSeats,
 		CabinClass:     flight.FareClass,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	logger "flight-aggregator/internal/common"
+	"flight-aggregator/internal/common/util"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -128,6 +129,13 @@ func (b *batikAirService) mapFlight(flight entity.BatikFlight) (entity.Flight, e
 	// init location registery
 	locationRegistery := entity.LocationRegistry{}
 
+	// formated IDR
+	const idr = "IDR"
+	var formattedPrice string
+	if flight.Fare.CurrencyCode == idr {
+		formattedPrice = util.FormatIDR(float64(flight.Fare.TotalPrice))
+	}
+
 	return entity.Flight{
 		ID:       fmt.Sprintf("%s_%s", flight.FlightNumber, entity.BATIKAIR),
 		Provider: entity.PROVIDER_BATIK_AIR,
@@ -159,8 +167,9 @@ func (b *batikAirService) mapFlight(flight entity.BatikFlight) (entity.Flight, e
 		CabinClass:     flight.Fare.Class,
 		Aircraft:       &aircraft,
 		Price: entity.PriceDetails{
-			Amount:   flight.Fare.TotalPrice,
-			Currency: flight.Fare.CurrencyCode,
+			Amount:    flight.Fare.TotalPrice,
+			Currency:  flight.Fare.CurrencyCode,
+			Formatted: formattedPrice,
 		},
 		Baggage:   baggage,
 		Amenities: flight.OnboardServices,
