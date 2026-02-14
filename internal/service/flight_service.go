@@ -10,6 +10,7 @@ import (
 	"flight-aggregator/internal/service/garuda"
 	"flight-aggregator/internal/service/lionair"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -69,7 +70,11 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 	}
 	allFlights := append(cachedFlights, liveFlights...)
 
+	// Fillter
 	filteredFlights := f.applyFilters(allFlights, req)
+
+	// Sort
+	f.applySorting(filteredFlights, req)
 
 	return entity.SearchResponse{
 		Flights: filteredFlights,
@@ -90,6 +95,29 @@ func (f *flightService) SearchFlight(ctx context.Context, req entity.SearchReque
 		},
 	}, nil
 
+}
+
+func (f *flightService) applySorting(flights []entity.Flight, req entity.SearchRequest) {
+	if len(flights) == 0 {
+		return
+	}
+	sort.Slice(flights, func(i, j int) bool {
+		a, b := i, j
+		if strings.EqualFold(req.SortOrder, "desc") {
+			a, b = j, i
+		}
+
+		switch strings.ToLower(req.SortBy) {
+		case "duration":
+			return flights[a].Duration.TotalMinutes < flights[b].Duration.TotalMinutes
+		case "departure_time":
+			return flights[a].Departure.Timestamp < flights[b].Departure.Timestamp
+		case "arrival_time":
+			return flights[a].Arrival.Timestamp < flights[b].Arrival.Timestamp
+		default: // Price
+			return flights[a].Price.Amount < flights[b].Price.Amount
+		}
+	})
 }
 
 func (f *flightService) applyFilters(flights []entity.Flight, req entity.SearchRequest) []entity.Flight {

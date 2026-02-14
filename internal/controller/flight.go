@@ -35,7 +35,6 @@ func (f *FlightController) SearchFlightData() {
 		DepartureDate: "2025-12-15",
 		Passanger:     1,
 		CabinClass:    "economy",
-		SortBy:        "Testing",
 		// 		Airlines
 		Airlines: []string{entity.LIONAIR},
 		// 		Price range
@@ -48,6 +47,10 @@ func (f *FlightController) SearchFlightData() {
 		//		TIME
 		// MinDepTime: "03:00",
 		// MaxDepTime: "12:00",
+
+		// 			Sort By
+		// SortOrder: "ASC",
+		// SortBy:    "Price",
 	}
 
 	result, err := f.flightSerivice.SearchFlight(context, req)
