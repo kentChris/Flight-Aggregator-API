@@ -62,6 +62,11 @@ func (s *lionAirService) mapFlights(rawFlights []entity.LionFlight) ([]entity.Fl
 
 	unifiedFlights := make([]entity.Flight, 0, len(rawFlights))
 	for _, raw := range rawFlights {
+		if err := raw.Validate(); err != nil {
+			log.Errorf("LionAir Integrity Error: %v", err)
+			continue
+		}
+
 		unified, err := s.mapFlight(raw)
 		if err != nil {
 			log.Errorf("Error Lion.mapFlights: Corrupted data")

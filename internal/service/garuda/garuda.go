@@ -59,6 +59,12 @@ func (g *garudaService) mapFlights(rawFlights []entity.GarudaFlight) ([]entity.F
 	unifiedFlights := make([]entity.Flight, 0, len(rawFlights))
 
 	for _, raw := range rawFlights {
+
+		if err := raw.Validate(); err != nil {
+			log.Errorf("Garuda Data Integrity Error: %v", err)
+			continue
+		}
+
 		unified, err := g.mapFlight(raw)
 		if err != nil {
 			log.Errorf("Error Garuda.mapFlights: Corrupted data")

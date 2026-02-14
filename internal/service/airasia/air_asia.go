@@ -65,6 +65,11 @@ func (a *airAsiaService) mapFlights(rawFlights []entity.AirAsiaFlight) ([]entity
 
 	unifiedFlights := make([]entity.Flight, 0, len(rawFlights))
 	for _, raw := range rawFlights {
+		if err := raw.Validate(); err != nil {
+			log.Errorf("Validation failed for AirAsia flight: %v", err)
+			continue
+		}
+
 		unified, err := a.mapFlight(raw)
 		if err != nil {
 			log.Errorf("Error AirAsia.mapFlights: Corrupted data for flight %s", raw.FlightCode)

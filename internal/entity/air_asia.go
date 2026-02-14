@@ -1,5 +1,10 @@
 package entity
 
+import (
+	"fmt"
+	"time"
+)
+
 type AirAsiaFlight struct {
 	FlightCode    string        `json:"flight_code"`
 	Airline       string        `json:"airline"`
@@ -19,4 +24,37 @@ type AirAsiaFlight struct {
 type AirAsiaStop struct {
 	Airport         string `json:"airport"`
 	WaitTimeMinutes int    `json:"wait_time_minutes"`
+}
+
+func (f *AirAsiaFlight) Validate() error {
+	depTime, err := time.Parse(time.RFC3339, f.DepartTime)
+	if err != nil {
+		return fmt.Errorf("invalid departure time format: %w", err)
+	}
+	arrTime, err := time.Parse(time.RFC3339, f.ArriveTime)
+	if err != nil {
+		return fmt.Errorf("invalid arrival time format: %w", err)
+	}
+
+	// arrival must be after the departure
+	if !arrTime.After(depTime) {
+		return fmt.Errorf("flight %s arrives (%v) before it departs (%v)", f.FlightCode, arrTime, depTime)
+	}
+
+	// Duration must be positive
+	if f.DurationHours <= 0 {
+		return fmt.Errorf("flight %s has invalid duration: %.2f hours", f.FlightCode, f.DurationHours)
+	}
+
+	// Origin and Destination cannot be the same
+	if f.FromAirport == f.ToAirport {
+		return fmt.Errorf("flight %s origin and destination are the same: %s", f.FlightCode, f.FromAirport)
+	}
+
+	// Price and Seats
+	if f.PriceIDR < 0 {
+		return fmt.Errorf("flight %s has negative price", f.FlightCode)
+	}
+
+	return nil
 }

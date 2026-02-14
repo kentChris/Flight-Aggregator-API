@@ -59,6 +59,11 @@ func (b *batikAirService) mapFlights(rawFlights []entity.BatikFlight) ([]entity.
 	unifiedFlights := make([]entity.Flight, 0, len(rawFlights))
 
 	for _, raw := range rawFlights {
+		if err := raw.Validate(); err != nil {
+			log.Errorf("Batik Data Integrity Error: %v", err)
+			continue
+		}
+
 		unified, err := b.mapFlight(raw)
 		if err != nil {
 			log.Errorf("Error Lion.mapFlights: Corrupted data")

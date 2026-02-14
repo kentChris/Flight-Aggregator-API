@@ -1,5 +1,10 @@
 package entity
 
+import (
+	"fmt"
+	"time"
+)
+
 type BatikFlight struct {
 	FlightNumber      string            `json:"flightNumber"`
 	AirlineName       string            `json:"airlineName"`
@@ -29,4 +34,34 @@ type BatikFare struct {
 type BatikConnection struct {
 	StopAirport  string `json:"stopAirport"`
 	StopDuration string `json:"stopDuration"`
+}
+
+func (f *BatikFlight) Validate() error {
+	const layout = "2006-01-02T15:04:05-0700"
+	depTime, err := time.Parse(layout, f.DepartureDateTime)
+	if err != nil {
+		return fmt.Errorf("invalid Batik departure format: %w", err)
+	}
+	arrTime, err := time.Parse(layout, f.ArrivalDateTime)
+	if err != nil {
+		return fmt.Errorf("invalid Batik arrival format: %w", err)
+	}
+
+	if !arrTime.After(depTime) {
+		return fmt.Errorf("[%s] Arrival must be after departure", f.FlightNumber)
+	}
+
+	if f.Fare.TotalPrice <= 0 {
+		return fmt.Errorf("[%s] Total price must be greater than zero", f.FlightNumber)
+	}
+
+	if f.Origin == f.Destination {
+		return fmt.Errorf("[%s] Origin and Destination cannot be identical (%s)", f.FlightNumber, f.Origin)
+	}
+
+	if f.SeatsAvailable < 0 {
+		return fmt.Errorf("[%s] Invalid seat count: %d", f.FlightNumber, f.SeatsAvailable)
+	}
+
+	return nil
 }
