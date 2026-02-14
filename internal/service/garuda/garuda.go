@@ -1,7 +1,9 @@
 package garuda
 
 import (
+	"context"
 	"encoding/json"
+	logger "flight-aggregator/internal/common"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -19,7 +21,7 @@ type garudaService struct {
 }
 
 type GarudaService interface {
-	GetFlight() ([]entity.Flight, error)
+	GetFlight(ctx context.Context) ([]entity.Flight, error)
 }
 
 func NewGarudaService(path string) GarudaService {
@@ -29,9 +31,10 @@ func NewGarudaService(path string) GarudaService {
 }
 
 // assuming it had 15 December as mock param
-func (g *garudaService) GetFlight() ([]entity.Flight, error) {
+func (g *garudaService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
 	//mock sleep 50 - 100 ms
 	delay := time.Duration(rand.Intn(51)+50) * time.Millisecond
+	// time.Sleep(20 * time.Second)
 	time.Sleep(delay)
 
 	data, err := os.ReadFile(g.filePath)
@@ -48,6 +51,7 @@ func (g *garudaService) GetFlight() ([]entity.Flight, error) {
 }
 
 func (g *garudaService) mapFlights(rawFlights []entity.GarudaFlight) ([]entity.Flight, error) {
+	log := logger.Init()
 	if len(rawFlights) == 0 {
 		return []entity.Flight{}, nil
 	}
@@ -57,7 +61,8 @@ func (g *garudaService) mapFlights(rawFlights []entity.GarudaFlight) ([]entity.F
 	for _, raw := range rawFlights {
 		unified, err := g.mapFlight(raw)
 		if err != nil {
-			return nil, fmt.Errorf("Garuda.mapFlights: error mapping flight %s: %w", raw.FlightID, err)
+			log.Errorf("Error Garuda.mapFlights: Corrupted data")
+			continue
 		}
 		unifiedFlights = append(unifiedFlights, unified)
 	}
@@ -76,22 +81,25 @@ func (g *garudaService) mapFlight(flight entity.GarudaFlight) (entity.Flight, er
 		return entity.Flight{}, err
 	}
 
+	// init location registery
+	locationRegistery := entity.LocationRegistry{}
+
 	return entity.Flight{
-		ID:       fmt.Sprintf("%s_%s", flight.FlightID, "Garuda"),
-		Provider: "Garuda Indonesia",
+		ID:       fmt.Sprintf("%s_%s", flight.FlightID, entity.GARUDA),
+		Provider: entity.PROVIDER_GARUDA,
 		Airline: entity.AirlineInfo{
 			Name: flight.Airline,
 			Code: flight.AirlineCode,
 		},
 		FlightNumber: flight.FlightID,
 		Departure: entity.LocationDetails{
-			Airport:   flight.Departure.Airport,
+			Airport:   locationRegistery.GetAirport(flight.Departure.Airport),
 			City:      flight.Departure.City,
 			Datetime:  depTime,
 			Timestamp: depTime.Unix(),
 		},
 		Arrival: entity.LocationDetails{
-			Airport:   flight.Arrival.Airport,
+			Airport:   locationRegistery.GetAirport(flight.Arrival.Airport),
 			City:      flight.Arrival.City,
 			Datetime:  arrTime,
 			Timestamp: arrTime.Unix(),

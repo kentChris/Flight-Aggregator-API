@@ -1,7 +1,9 @@
 package lionair
 
 import (
+	"context"
 	"encoding/json"
+	logger "flight-aggregator/internal/common"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
@@ -23,7 +25,7 @@ type lionAirService struct {
 }
 
 type LionAirService interface {
-	GetFlight() ([]entity.LionFlight, error)
+	GetFlight(ctx context.Context) ([]entity.Flight, error)
 }
 
 func NewLionAirService(path string) LionAirService {
@@ -33,7 +35,7 @@ func NewLionAirService(path string) LionAirService {
 }
 
 // assuming it had 15 December as mock param
-func (g *lionAirService) GetFlight() ([]entity.LionFlight, error) {
+func (g *lionAirService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
 	// ToDo: add utils function
 	//mock sleep 100 - 200 ms
 	delay := time.Duration(rand.Intn(101)+100) * time.Millisecond
@@ -41,7 +43,7 @@ func (g *lionAirService) GetFlight() ([]entity.LionFlight, error) {
 
 	data, err := os.ReadFile(g.filePath)
 	if err != nil {
-		return nil, fmt.Errorf("Garuda.getFlight: Failed to get garuda data")
+		return nil, fmt.Errorf("Lionair.getFlight: Failed to get Lion air data")
 	}
 
 	var response LionResponse
@@ -49,5 +51,90 @@ func (g *lionAirService) GetFlight() ([]entity.LionFlight, error) {
 		return nil, err
 	}
 
-	return response.Data.AvailableFlights, nil
+	return g.mapFlights(response.Data.AvailableFlights)
+}
+
+func (s *lionAirService) mapFlights(rawFlights []entity.LionFlight) ([]entity.Flight, error) {
+	log := logger.Init()
+	if len(rawFlights) == 0 {
+		return []entity.Flight{}, nil
+	}
+
+	unifiedFlights := make([]entity.Flight, 0, len(rawFlights))
+	for _, raw := range rawFlights {
+		unified, err := s.mapFlight(raw)
+		if err != nil {
+			log.Errorf("Error Lion.mapFlights: Corrupted data")
+			continue
+		}
+		unifiedFlights = append(unifiedFlights, unified)
+	}
+
+	return unifiedFlights, nil
+}
+
+func (s *lionAirService) mapFlight(flight entity.LionFlight) (entity.Flight, error) {
+	// Departure
+	locDep, _ := time.LoadLocation(flight.Schedule.DepartureTimezone)
+	depTime, err := time.ParseInLocation("2006-01-02T15:04:05", flight.Schedule.Departure, locDep)
+	if err != nil {
+		return entity.Flight{}, err
+	}
+
+	// Arrival
+	locArr, _ := time.LoadLocation(flight.Schedule.ArrivalTimezone)
+	arrTime, err := time.ParseInLocation("2006-01-02T15:04:05", flight.Schedule.Arrival, locArr)
+	if err != nil {
+		return entity.Flight{}, err
+	}
+
+	aircraft := flight.PlaneType
+
+	// amenities
+	amenities := []string{}
+	if flight.Services.WifiAvailable {
+		amenities = append(amenities, entity.AMENITIES_WIFI)
+	}
+	if flight.Services.MealsIncluded {
+		amenities = append(amenities, entity.AMENITIES_MEAL)
+	}
+
+	return entity.Flight{
+		ID:       fmt.Sprintf("%s_%s", flight.ID, entity.LIONAIR),
+		Provider: entity.PROVIDER_LION_AIR,
+		Airline: entity.AirlineInfo{
+			Name: flight.Carrier.Name,
+			Code: flight.ID,
+		},
+		FlightNumber: flight.ID,
+		Departure: entity.LocationDetails{
+			Airport:   flight.Route.From.Name,
+			City:      flight.Route.From.City,
+			Datetime:  depTime,
+			Timestamp: depTime.Unix(),
+		},
+		Arrival: entity.LocationDetails{
+			Airport:   flight.Route.To.Name,
+			City:      flight.Route.To.City,
+			Datetime:  arrTime,
+			Timestamp: arrTime.Unix(),
+		},
+		Duration: entity.DurationDetails{
+			TotalMinutes: flight.FlightTime,
+			Formatted:    fmt.Sprintf("%dh %dm", flight.FlightTime/60, flight.FlightTime%60),
+		},
+		Stops:          flight.StopCount,
+		AvailableSeats: flight.SeatsLeft,
+		CabinClass:     flight.Pricing.FareType,
+		Aircraft:       &aircraft,
+		Price: entity.PriceDetails{
+			Amount:   flight.Pricing.Total,
+			Currency: flight.Pricing.Currency,
+		},
+		Baggage: entity.BaggageDetails{
+			CarryOn: flight.Services.BaggageAllowance.Cabin,
+			Checked: flight.Services.BaggageAllowance.Hold,
+		},
+		Amenities: amenities,
+	}, nil
 }

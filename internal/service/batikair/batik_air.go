@@ -1,11 +1,15 @@
 package batikair
 
 import (
+	"context"
 	"encoding/json"
+	logger "flight-aggregator/internal/common"
+	"flight-aggregator/internal/common/util"
 	"flight-aggregator/internal/entity"
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -20,7 +24,7 @@ type batikAirService struct {
 }
 
 type BatikAirService interface {
-	GetFlight() ([]entity.BatikFlight, error)
+	GetFlight(ctx context.Context) ([]entity.Flight, error)
 }
 
 func NewBatikAirService(path string) BatikAirService {
@@ -30,12 +34,12 @@ func NewBatikAirService(path string) BatikAirService {
 }
 
 // assuming it had 15 December as mock param
-func (g *batikAirService) GetFlight() ([]entity.BatikFlight, error) {
+func (b *batikAirService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
 	//mock sleep 200 - 400 ms
 	delay := time.Duration(rand.Intn(201)+200) * time.Millisecond
 	time.Sleep(delay)
 
-	data, err := os.ReadFile(g.filePath)
+	data, err := os.ReadFile(b.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("Batik.getFlight: Failed to get batik data")
 	}
@@ -45,5 +49,88 @@ func (g *batikAirService) GetFlight() ([]entity.BatikFlight, error) {
 		return nil, err
 	}
 
-	return batikAirResponse.Results, nil
+	return b.mapFlights(batikAirResponse.Results)
+}
+
+func (b *batikAirService) mapFlights(rawFlights []entity.BatikFlight) ([]entity.Flight, error) {
+	log := logger.Init()
+	if len(rawFlights) == 0 {
+		return []entity.Flight{}, nil
+	}
+	unifiedFlights := make([]entity.Flight, 0, len(rawFlights))
+
+	for _, raw := range rawFlights {
+		unified, err := b.mapFlight(raw)
+		if err != nil {
+			log.Errorf("Error Lion.mapFlights: Corrupted data")
+			continue
+		}
+		unifiedFlights = append(unifiedFlights, unified)
+	}
+
+	return unifiedFlights, nil
+}
+
+func (b *batikAirService) mapFlight(flight entity.BatikFlight) (entity.Flight, error) {
+	const layout = "2006-01-02T15:04:05-0700"
+	depTime, err := time.Parse(layout, flight.DepartureDateTime)
+	if err != nil {
+		return entity.Flight{}, err
+	}
+	arrTime, err := time.Parse(layout, flight.ArrivalDateTime)
+	if err != nil {
+		return entity.Flight{}, err
+	}
+
+	totalMinutes := util.ParseDurationStringToInt(flight.TravelTime)
+
+	baggage := entity.BaggageDetails{
+		CarryOn: "7kg",
+		Checked: "20kg",
+	}
+	if parts := strings.Split(flight.BaggageInfo, ","); len(parts) == 2 {
+		baggage.CarryOn = strings.TrimSpace(strings.ReplaceAll(parts[0], "cabin", ""))
+		baggage.Checked = strings.TrimSpace(strings.ReplaceAll(parts[1], "checked", ""))
+	}
+
+	aircraft := flight.AircraftModel
+
+	// init location registery
+	locationRegistery := entity.LocationRegistry{}
+
+	return entity.Flight{
+		ID:       fmt.Sprintf("%s_%s", flight.FlightNumber, entity.BATIKAIR),
+		Provider: entity.PROVIDER_BATIK_AIR,
+		Airline: entity.AirlineInfo{
+			Name: flight.AirlineName,
+			Code: flight.AirlineIATA,
+		},
+		FlightNumber: flight.FlightNumber,
+		Departure: entity.LocationDetails{
+			Airport:   locationRegistery.GetAirport(flight.Origin),
+			City:      locationRegistery.GetCity(flight.Origin),
+			Datetime:  depTime,
+			Timestamp: depTime.Unix(),
+		},
+		Arrival: entity.LocationDetails{
+			Airport:   locationRegistery.GetAirport(flight.Destination),
+			City:      locationRegistery.GetCity(flight.Destination),
+			Datetime:  arrTime,
+			Timestamp: arrTime.Unix(),
+		},
+		Duration: entity.DurationDetails{
+			TotalMinutes: totalMinutes,
+			Formatted:    flight.TravelTime,
+		},
+		Stops:          flight.NumberOfStops,
+		AvailableSeats: flight.SeatsAvailable,
+		CabinClass:     flight.Fare.Class,
+		Aircraft:       &aircraft,
+		Price: entity.PriceDetails{
+			Amount:   flight.Fare.TotalPrice,
+			Currency: flight.Fare.CurrencyCode,
+		},
+		Baggage:   baggage,
+		Amenities: flight.OnboardServices,
+	}, nil
 }

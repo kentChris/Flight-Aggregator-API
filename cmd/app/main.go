@@ -3,6 +3,7 @@ package main
 import (
 	logger "flight-aggregator/internal/common"
 	"flight-aggregator/internal/controller"
+	"flight-aggregator/internal/redis"
 	"flight-aggregator/internal/service"
 	"flight-aggregator/internal/service/airasia"
 	"flight-aggregator/internal/service/batikair"
@@ -20,7 +21,9 @@ func main() {
 	batikAirService := batikair.NewBatikAirService("./mock/batik_air_search_response.json")
 	lionAirService := lionair.NewLionAirService("mock/lion_air_search_response.json")
 	airasia := airasia.NewAirAsiaService("mock/airasia_search_response.json")
-	flightService := service.NewFlightService(garudaService, batikAirService, lionAirService, airasia)
+	// We can enhance by storing this in env
+	redisService := redis.NewRedisService("localhost:6379", "", 0)
+	flightService := service.NewFlightService(garudaService, batikAirService, lionAirService, airasia, redisService)
 
 	// Init controller
 	flightController := controller.NewFlightController(flightService)
