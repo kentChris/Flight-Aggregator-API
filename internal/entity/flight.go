@@ -93,12 +93,12 @@ func (r *LocationRegistry) GetAirport(code string) string {
 }
 
 type SearchRequest struct {
-	Origin        string  `json:"origin"`
-	Destination   string  `json:"destination"`
-	DepartureDate string  `json:"departureDate"`
-	ReturnDate    *string `json:"returnDate"` // Pointer because it can be null
-	Passanger     int     `json:"passengers"`
-	CabinClass    string  `json:"cabinClass"`
+	Origin        string   `json:"origin"`
+	Destination   []string `json:"destinations"`
+	DepartureDate string   `json:"departureDate"`
+	ReturnDate    *string  `json:"returnDate"` // Pointer because it can be null
+	Passanger     int      `json:"passengers"`
+	CabinClass    string   `json:"cabinClass"`
 
 	PriceMin    float64  `json:"priceMin,omitempty"`
 	PriceMax    float64  `json:"priceMax,omitempty"`
@@ -118,24 +118,19 @@ func (r *SearchRequest) Validate() error {
 		return fmt.Errorf("origin must be a 3-letter IATA code")
 	}
 
-	if len(r.Destination) != 3 {
-		return fmt.Errorf("destination must be a 3-letter IATA code")
+	if len(r.Destination) == 0 {
+		return fmt.Errorf("at least one destination must be provided")
 	}
 
-	if r.Origin == r.Destination {
-		return fmt.Errorf("origin and destination cannot be the same")
+	for _, dest := range r.Destination {
+		if len(dest) != 3 {
+			return fmt.Errorf("destination %s must be a 3-letter IATA code", dest)
+		}
+
+		if r.Origin == dest {
+			return fmt.Errorf("origin and destination %s cannot be the same", dest)
+		}
 	}
-
-	// Commented because the mock data is 2025-12-15
-	// searchDate, err := time.Parse("2006-01-02", r.Date)
-	// if err != nil {
-	// 	return fmt.Errorf("invalid date format, use YYYY-MM-DD")
-	// }
-
-	// today := time.Now().Truncate(24 * time.Hour)
-	// if searchDate.Before(today) {
-	// 	return fmt.Errorf("cannot search for flights in the past")
-	// }
 
 	return nil
 }

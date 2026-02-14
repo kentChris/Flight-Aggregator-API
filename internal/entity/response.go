@@ -8,11 +8,11 @@ type SearchResponse struct {
 }
 
 type SearchCriteria struct {
-	Origin        string `json:"origin"`
-	Destination   string `json:"destination"`
-	DepartureDate string `json:"departure_date"`
-	Passengers    int    `json:"passengers"`
-	CabinClass    string `json:"cabin_class"`
+	Origin        string   `json:"origin"`
+	Destination   []string `json:"destination"`
+	DepartureDate string   `json:"departure_date"`
+	Passengers    int      `json:"passengers"`
+	CabinClass    string   `json:"cabin_class"`
 }
 
 type Metadata struct {

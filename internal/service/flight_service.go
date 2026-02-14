@@ -128,14 +128,18 @@ func (f *flightService) applyFiltersAndIdentifyBest(flights []entity.Flight, req
 	var bestDeal *entity.Flight
 	minScore := math.MaxFloat64
 
+	destMap := make(map[string]bool)
+	for _, d := range req.Destination {
+		destMap[strings.ToUpper(d)] = true
+	}
+
 	// constant value
 	const timeWeight = 2500.0
 	const stopPenalty = 150000.0
 	const amenities = 50000.0
 
 	for _, fl := range flights {
-		if !strings.EqualFold(fl.Departure.Code, req.Origin) ||
-			!strings.EqualFold(fl.Arrival.Code, req.Destination) {
+		if !strings.EqualFold(fl.Departure.Code, req.Origin) || !destMap[strings.ToUpper(fl.Arrival.Code)] {
 			continue
 		}
 
@@ -244,7 +248,9 @@ func (f *flightService) saveToCache(ctx context.Context, req entity.SearchReques
 
 func (f *flightService) standardizeRequest(req *entity.SearchRequest) {
 	req.Origin = strings.ToUpper(req.Origin)
-	req.Destination = strings.ToUpper(req.Destination)
+	for i, dest := range req.Destination {
+		req.Destination[i] = strings.ToUpper(strings.TrimSpace(dest))
+	}
 }
 
 func (f *flightService) getCachedAirlines(ctx context.Context, req entity.SearchRequest) ([]entity.Flight, []string, int) {
