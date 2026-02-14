@@ -1,0 +1,15 @@
+# Binaries
+flight-aggregator
+*.exe
+*.bin
+
+# Dependency folders
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
