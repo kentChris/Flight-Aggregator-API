@@ -32,22 +32,44 @@ func NewGarudaService(path string) GarudaService {
 
 // assuming it had 15 December as mock param
 func (g *garudaService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
-	//mock sleep 50 - 100 ms
-	delay := time.Duration(rand.Intn(51)+50) * time.Millisecond
-	// time.Sleep(20 * time.Second)
-	time.Sleep(delay)
+	// 1. Set the 2-second deadline
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 
-	data, err := os.ReadFile(g.filePath)
-	if err != nil {
-		return nil, fmt.Errorf("Garuda.getFlight: Failed to get garuda data")
+	type result struct {
+		flights []entity.Flight
+		err     error
 	}
+	resChan := make(chan result, 1)
 
-	var garudaResponse GarudaResponse
-	if err := json.Unmarshal(data, &garudaResponse); err != nil {
-		return nil, err
+	go func() {
+		// Mock delay logic
+		delay := time.Duration(rand.Intn(51)+50) * time.Millisecond
+		time.Sleep(delay)
+		// time.Sleep(5 * time.Second)
+
+		data, err := os.ReadFile(g.filePath)
+		if err != nil {
+			resChan <- result{nil, fmt.Errorf("Garuda.getFlight: Failed to read file")}
+			return
+		}
+
+		var garudaResponse GarudaResponse
+		if err := json.Unmarshal(data, &garudaResponse); err != nil {
+			resChan <- result{nil, err}
+			return
+		}
+
+		flights, err := g.mapFlights(garudaResponse.Flights)
+		resChan <- result{flights, err}
+	}()
+
+	select {
+	case res := <-resChan:
+		return res.flights, res.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("Garuda fetch timed out after 2s")
 	}
-
-	return g.mapFlights(garudaResponse.Flights)
 }
 
 func (g *garudaService) mapFlights(rawFlights []entity.GarudaFlight) ([]entity.Flight, error) {

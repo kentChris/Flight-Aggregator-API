@@ -33,28 +33,48 @@ func NewAirAsiaService(path string) AirAsiaService {
 
 // assuming it had 15 December as mock param
 func (a *airAsiaService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
-	//mock sleep 50 - 150 ms
-	// ToDo: add utils function
-	delay := time.Duration(rand.Intn(101)+50) * time.Millisecond
-	time.Sleep(delay)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 
-	// ToDo: add this in util
-	change := rand.Intn(100)
-	if change >= 90 {
-		return nil, fmt.Errorf("Mock Fail")
+	type result struct {
+		flights []entity.Flight
+		err     error
 	}
+	resChan := make(chan result, 1)
 
-	data, err := os.ReadFile(a.filePath)
-	if err != nil {
-		return nil, fmt.Errorf("airAsia.getFlight: Failed to get Air Asia data")
+	go func() {
+		// Mock delay (50 - 150ms)
+		delay := time.Duration(rand.Intn(101)+50) * time.Millisecond
+		time.Sleep(delay)
+		// time.Sleep(4 * time.Second)
+
+		if rand.Intn(100) >= 90 {
+			resChan <- result{nil, fmt.Errorf("AirAsia: Random Mock Failure")}
+			return
+		}
+
+		data, err := os.ReadFile(a.filePath)
+		if err != nil {
+			resChan <- result{nil, fmt.Errorf("AirAsia.getFlight: Failed to read file")}
+			return
+		}
+
+		var airAsiaResponse AirAsiaResponse
+		if err := json.Unmarshal(data, &airAsiaResponse); err != nil {
+			resChan <- result{nil, err}
+			return
+		}
+
+		flights, err := a.mapFlights(airAsiaResponse.Flights)
+		resChan <- result{flights, err}
+	}()
+
+	select {
+	case res := <-resChan:
+		return res.flights, res.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("AirAsia fetch timed out after 2s")
 	}
-
-	var airAsiaResponse AirAsiaResponse
-	if err := json.Unmarshal(data, &airAsiaResponse); err != nil {
-		return nil, err
-	}
-
-	return a.mapFlights(airAsiaResponse.Flights)
 }
 
 func (a *airAsiaService) mapFlights(rawFlights []entity.AirAsiaFlight) ([]entity.Flight, error) {

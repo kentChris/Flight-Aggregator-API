@@ -36,22 +36,43 @@ func NewLionAirService(path string) LionAirService {
 
 // assuming it had 15 December as mock param
 func (g *lionAirService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
-	// ToDo: add utils function
-	//mock sleep 100 - 200 ms
-	delay := time.Duration(rand.Intn(101)+100) * time.Millisecond
-	time.Sleep(delay)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 
-	data, err := os.ReadFile(g.filePath)
-	if err != nil {
-		return nil, fmt.Errorf("Lionair.getFlight: Failed to get Lion air data")
+	type result struct {
+		flights []entity.Flight
+		err     error
 	}
+	resChan := make(chan result, 1)
 
-	var response LionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, err
+	go func() {
+		// mock delay
+		delay := time.Duration(rand.Intn(101)+100) * time.Millisecond
+		time.Sleep(delay)
+		// time.Sleep(5 * time.Second)
+
+		data, err := os.ReadFile(g.filePath)
+		if err != nil {
+			resChan <- result{nil, fmt.Errorf("Lionair.getFlight: Failed to read file")}
+			return
+		}
+
+		var response LionResponse
+		if err := json.Unmarshal(data, &response); err != nil {
+			resChan <- result{nil, err}
+			return
+		}
+
+		flights, err := g.mapFlights(response.Data.AvailableFlights)
+		resChan <- result{flights, err}
+	}()
+
+	select {
+	case res := <-resChan:
+		return res.flights, res.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("LionAir fetch timed out after 2s")
 	}
-
-	return g.mapFlights(response.Data.AvailableFlights)
 }
 
 func (s *lionAirService) mapFlights(rawFlights []entity.LionFlight) ([]entity.Flight, error) {

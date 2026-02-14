@@ -31,7 +31,7 @@ func (f *FlightController) SearchFlightData() {
 	// MOCK request
 	req := entity.SearchRequest{
 		Origin:        "CGK",
-		Destination:   []string{"SUB", "UPG"},
+		Destination:   []string{"DPS"},
 		DepartureDate: "2025-12-15",
 		Passanger:     1,
 		CabinClass:    "economy",

@@ -34,21 +34,43 @@ func NewBatikAirService(path string) BatikAirService {
 
 // assuming it had 15 December as mock param
 func (b *batikAirService) GetFlight(ctx context.Context) ([]entity.Flight, error) {
-	//mock sleep 200 - 400 ms
-	delay := time.Duration(rand.Intn(201)+200) * time.Millisecond
-	time.Sleep(delay)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
 
-	data, err := os.ReadFile(b.filePath)
-	if err != nil {
-		return nil, fmt.Errorf("Batik.getFlight: Failed to get batik data")
+	type result struct {
+		flights []entity.Flight
+		err     error
 	}
+	resChan := make(chan result, 1)
 
-	var batikAirResponse BatikAirResponse
-	if err := json.Unmarshal(data, &batikAirResponse); err != nil {
-		return nil, err
+	go func() {
+		// Mock delay logic (200 - 400ms)
+		delay := time.Duration(rand.Intn(201)+200) * time.Millisecond
+		time.Sleep(delay)
+		// time.Sleep(4 * time.Second)
+
+		data, err := os.ReadFile(b.filePath)
+		if err != nil {
+			resChan <- result{nil, fmt.Errorf("Batik.getFlight: Failed to read file")}
+			return
+		}
+
+		var batikAirResponse BatikAirResponse
+		if err := json.Unmarshal(data, &batikAirResponse); err != nil {
+			resChan <- result{nil, err}
+			return
+		}
+
+		flights, err := b.mapFlights(batikAirResponse.Results)
+		resChan <- result{flights, err}
+	}()
+
+	select {
+	case res := <-resChan:
+		return res.flights, res.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("BatikAir fetch timed out after 2s")
 	}
-
-	return b.mapFlights(batikAirResponse.Results)
 }
 
 func (b *batikAirService) mapFlights(rawFlights []entity.BatikFlight) ([]entity.Flight, error) {
