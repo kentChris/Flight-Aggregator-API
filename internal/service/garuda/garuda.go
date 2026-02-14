@@ -103,12 +103,14 @@ func (g *garudaService) mapFlight(flight entity.GarudaFlight) (entity.Flight, er
 			City:      flight.Departure.City,
 			Datetime:  depTime,
 			Timestamp: depTime.Unix(),
+			Code:      flight.Departure.Airport,
 		},
 		Arrival: entity.LocationDetails{
 			Airport:   locationRegistery.GetAirport(flight.Arrival.Airport),
 			City:      flight.Arrival.City,
 			Datetime:  arrTime,
 			Timestamp: arrTime.Unix(),
+			Code:      flight.Arrival.Airport,
 		},
 		Duration: entity.DurationDetails{
 			TotalMinutes: totalMinutes,

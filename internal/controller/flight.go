@@ -31,12 +31,12 @@ func (f *FlightController) SearchFlightData() {
 	// MOCK request
 	req := entity.SearchRequest{
 		Origin:        "CGK",
-		Destination:   "SBY",
+		Destination:   "DPS",
 		DepartureDate: "2025-12-15",
 		Passanger:     1,
 		CabinClass:    "economy",
 		// 		Airlines
-		Airlines: []string{entity.GARUDA, entity.LIONAIR},
+		Airlines: []string{},
 		// 		Price range
 		// PriceMin: 400000,
 		// PriceMax: 600000,

@@ -114,12 +114,14 @@ func (b *batikAirService) mapFlight(flight entity.BatikFlight) (entity.Flight, e
 			City:      locationRegistery.GetCity(flight.Origin),
 			Datetime:  depTime,
 			Timestamp: depTime.Unix(),
+			Code:      flight.Origin,
 		},
 		Arrival: entity.LocationDetails{
 			Airport:   locationRegistery.GetAirport(flight.Destination),
 			City:      locationRegistery.GetCity(flight.Destination),
 			Datetime:  arrTime,
 			Timestamp: arrTime.Unix(),
+			Code:      flight.Destination,
 		},
 		Duration: entity.DurationDetails{
 			TotalMinutes: totalMinutes,

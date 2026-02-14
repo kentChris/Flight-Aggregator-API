@@ -47,6 +47,7 @@ type LocationDetails struct {
 	City      string    `json:"city"`
 	Datetime  time.Time `json:"datetime"`
 	Timestamp int64     `json:"timestamp"`
+	Code      string
 }
 
 type DurationDetails struct {

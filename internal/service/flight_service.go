@@ -136,6 +136,11 @@ func (f *flightService) applyFiltersAndIdentifyBest(flights []entity.Flight, req
 	const amenities = 50000.0
 
 	for _, fl := range flights {
+		if !strings.EqualFold(fl.Departure.Code, req.Origin) ||
+			!strings.EqualFold(fl.Arrival.Code, req.Destination) {
+			continue
+		}
+
 		//  Price, Stop, Duration FILTERS
 		if req.PriceMin > 0 && fl.Price.Amount < req.PriceMin {
 			continue
@@ -231,7 +236,7 @@ func (f *flightService) fetchSpecificAirlines(ctx context.Context, req entity.Se
 }
 
 func (f *flightService) saveToCache(ctx context.Context, req entity.SearchRequest, code string, flights []entity.Flight) {
-	key := fmt.Sprintf("flights:%s:%s:%s:%s", req.Origin, req.Destination, req.DepartureDate, code)
+	key := fmt.Sprintf("flights:%s:%s:%s", req.Origin, req.DepartureDate, code)
 
 	err := f.redisService.Set(ctx, key, flights, 1*time.Minute)
 	if err != nil {
@@ -257,7 +262,7 @@ func (f *flightService) getCachedAirlines(ctx context.Context, req entity.Search
 
 	for _, code := range targetAirlines {
 		var airlineFlights []entity.Flight
-		key := fmt.Sprintf("flights:%s:%s:%s:%s", req.Origin, req.Destination, req.DepartureDate, code)
+		key := fmt.Sprintf("flights:%s:%s:%s", req.Origin, req.DepartureDate, code)
 
 		if err := f.redisService.Get(ctx, key, &airlineFlights); err == nil && len(airlineFlights) > 0 {
 			cachedFlights = append(cachedFlights, airlineFlights...)

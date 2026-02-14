@@ -118,12 +118,14 @@ func (s *lionAirService) mapFlight(flight entity.LionFlight) (entity.Flight, err
 			City:      flight.Route.From.City,
 			Datetime:  depTime,
 			Timestamp: depTime.Unix(),
+			Code:      flight.Route.From.Code,
 		},
 		Arrival: entity.LocationDetails{
 			Airport:   flight.Route.To.Name,
 			City:      flight.Route.To.City,
 			Datetime:  arrTime,
 			Timestamp: arrTime.Unix(),
+			Code:      flight.Route.To.Code,
 		},
 		Duration: entity.DurationDetails{
 			TotalMinutes: totalMinutes,
